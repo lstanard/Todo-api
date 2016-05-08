@@ -65,40 +65,48 @@ app.post('/todos', function (req, res) {
 // DELETE /todos/:id
 app.delete('/todos/:id', function(req, res) {
 	var todoId = parseInt(req.params.id, 10);
-	var matched = _.findWhere(todos, {id: todoId});
 
-	if (!matched) {
-		res.status(404).send({"error": "No todo found with that ID."});
-	} else {
-		todos = _.without(todos, matched);
-		res.json(matched);
-	}
+	// This is how the instructor approached it
+	db.todo.destroy({
+		where: {
+			id: todoId
+		}
+	}).then(function (rowsDeleted) {
+		if (rowsDeleted === 0)
+			res.status(404).json({error: 'No todo found with that ID.'});
+		else
+			res.status(204).send();
+	}, function () {
+		res.status(500).send();
+	});
+
+	// This is how I approached it, and it works fine
+	// db.todo.findById(todoId).then(function (todo) {
+	// 	if (!!todo)
+	// 		res.json(todo.destroy());
+	// 	else
+	// 		res.status(404).send({"error": "No todo found with that ID."});
+	// }, function (e) {
+	// 	res.status(500).send();
+	// });
 });
 
 // PUT /todos/:id
 app.put('/todos/:id', function(req, res) {
 	var todoId = parseInt(req.params.id, 10);
-	var matched = _.findWhere(todos, {id: todoId});
 	var body = _.pick(req.body, 'description', 'completed');
-	var validAttributes = {};
 
-	if (!matched)
-		return res.status(404).send();
-
-	if (body.hasOwnProperty('completed') && _.isBoolean(body.completed)) {
-		validAttributes.completed = body.completed;
-	} else if (body.hasOwnProperty('completed')) {
-		return res.status(400).send();
-	}
-
-	if (body.hasOwnProperty('description') && _.isString(body.description) && body.description.trim().length > 0) {
-		validAttributes.description = body.description;
-	} else if (body.hasOwnProperty('description')) {
-		return res.status(400).send();
-	}
-
-	_.extend(matched, validAttributes);
-	res.json(matched);
+	db.todo.findById(todoId).then(function (todo) {
+		if (!!todo) {
+			todo.update(body).then(function (todo) {
+				res.json(todo.toJSON());
+			});
+		} else {
+			res.status(404).send({"error": "No todo found with that ID."});
+		}
+	}, function (e) {
+		res.status(500).send();
+	});
 });
 
 db.sequelize.sync().then(function () {

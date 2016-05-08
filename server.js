@@ -67,6 +67,7 @@ app.delete('/todos/:id', function(req, res) {
 	var todoId = parseInt(req.params.id, 10);
 
 	// This is how the instructor approached it
+
 	db.todo.destroy({
 		where: {
 			id: todoId
@@ -80,7 +81,10 @@ app.delete('/todos/:id', function(req, res) {
 		res.status(500).send();
 	});
 
-	// This is how I approached it, and it works fine
+	// This is how I approached it, and it works fine.
+	// Although, it's probably better to return a status of 204
+	// instead of the results of the destory() method.
+
 	// db.todo.findById(todoId).then(function (todo) {
 	// 	if (!!todo)
 	// 		res.json(todo.destroy());
@@ -95,18 +99,45 @@ app.delete('/todos/:id', function(req, res) {
 app.put('/todos/:id', function(req, res) {
 	var todoId = parseInt(req.params.id, 10);
 	var body = _.pick(req.body, 'description', 'completed');
+	var attributes = {};
+
+	if (body.hasOwnProperty('completed')) {
+		attributes.completed = body.completed;
+	}
+
+	if (body.hasOwnProperty('description')) {
+		attributes.description = body.description;
+	}
 
 	db.todo.findById(todoId).then(function (todo) {
-		if (!!todo) {
-			todo.update(body).then(function (todo) {
+		if (todo) {
+			todo.update(attributes).then(function (todo) {
 				res.json(todo.toJSON());
+			}, function (e) {
+				res.status(400).json(e);
 			});
 		} else {
-			res.status(404).send({"error": "No todo found with that ID."});
+			res.status(404).send();
 		}
-	}, function (e) {
+	}, function () {
 		res.status(500).send();
 	});
+
+	// This is how I approached it, and it works fine.
+	// The method above is better since it's properly using
+	// promises, instead of the else clause below.
+
+	// db.todo.findById(todoId).then(function (todo) {
+	// 	if (!!todo) {
+	// 		todo.update(body).then(function (todo) {
+	// 			res.json(todo.toJSON());
+	// 		});
+	// 	} else {
+	// 		res.status(404).send({"error": "No todo found with that ID."});
+	// 	}
+	// }, function (e) {
+	// 	res.status(500).send();
+	// });
 });
 
 db.sequelize.sync().then(function () {
